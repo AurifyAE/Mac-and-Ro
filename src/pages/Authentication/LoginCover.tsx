@@ -16,12 +16,26 @@ import { login } from '../../store/authSlice';
 
 const LoginCover = () => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    
+    // Form state
+    const [formData, setFormData] = useState({
+        username: '',
+        password: '',
+        rememberMe: false
+    });
+    
+    // UI state
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    
     useEffect(() => {
         dispatch(setPageTitle('Login Cover'));
     });
-    const navigate = useNavigate();
+
     const isRtl = useSelector((state: IRootState) => state.themeConfig.rtlClass) === 'rtl' ? true : false;
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
+    
     const setLocale = (flag: string) => {
         setFlag(flag);
         if (flag.toLowerCase() === 'ae') {
@@ -32,24 +46,91 @@ const LoginCover = () => {
     };
     const [flag, setFlag] = useState(themeConfig.locale);
 
-    const submitForm = (e: React.FormEvent) => {
+    // API base URL - adjust this to match your backend URL
+    const VITE_API_URL = process.env.VITE_API_URL || 'http://localhost:5000/api';
+
+    // Handle input changes
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const submitForm = async (e: React.FormEvent) => {
         e.preventDefault();
-        const email = (document.getElementById('Email') as HTMLInputElement).value;
-        const password = (document.getElementById('Password') as HTMLInputElement).value;
-        const adminUser = import.meta.env.REACT_APP_ADMIN_USERNAME;
-        const adminPass = import.meta.env.REACT_APP_ADMIN_PASSWORD;
-        const superUser = import.meta.env.REACT_APP_SUPERADMIN_USERNAME;
-        const superPass = import.meta.env.REACT_APP_SUPERADMIN_PASSWORD;
-        if (email === adminUser && password === adminPass) {
-            dispatch(login('admin'));
-            localStorage.setItem('username', 'admin');
-            navigate('/');
-        } else if (email === superUser && password === superPass) {
-            dispatch(login('superadmin'));
-            localStorage.setItem('username', 'superadmin');
-            navigate('/');
-        } else {
-            alert('Invalid credentials');
+        setLoading(true);
+        setError('');
+
+        const { username, password } = formData;
+
+        if (!username || !password) {
+            setError('Username and password are required');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            // First, try super admin login
+            console.log(username, password, 'this is username and password');
+            const superAdminResponse = await fetch(`${VITE_API_URL}api/admin/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (superAdminResponse.ok) {
+                const data = await superAdminResponse.json();
+                
+                // Store token and user info
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', username);
+                localStorage.setItem('userRole', 'superadmin');
+                localStorage.setItem('role', 'superadmin');
+
+                dispatch(login('superadmin'));
+                navigate('/');
+                return;
+            }
+
+            // If super admin login fails, try branch admin login
+            const branchAdminResponse = await fetch(`${VITE_API_URL}api/admin/branch-admin-login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    userId: username, 
+                    password 
+                }),
+            });
+
+            if (branchAdminResponse.ok) {
+                const data = await branchAdminResponse.json();
+                
+                // Store token and user info
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.admin.userId);
+                localStorage.setItem('userRole', 'branchAdmin');
+                localStorage.setItem('adminInfo', JSON.stringify(data.admin));
+                
+                dispatch(login('branchAdmin'));
+                navigate('/');
+                return;
+            }
+
+            // If both login attempts fail
+            const branchAdminError = await branchAdminResponse.json();
+            setError(branchAdminError.message || 'Invalid credentials');
+
+        } catch (err) {
+            console.error('Login error:', err);
+            setError('Login failed. Please check your connection and try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -106,7 +187,6 @@ const LoginCover = () => {
                                                         className={`flex w-full hover:text-primary rounded-lg ${flag === item.code ? 'bg-primary/10 text-primary' : ''}`}
                                                         onClick={() => {
                                                             i18next.changeLanguage(item.code);
-                                                            // setFlag(item.code);
                                                             setLocale(item.code);
                                                         }}
                                                     >
@@ -123,22 +203,47 @@ const LoginCover = () => {
                         <div className="w-full max-w-[440px] lg:mt-16">
                             <div className="mb-10">
                                 <h1 className="text-3xl font-extrabold uppercase !leading-snug text-primary md:text-4xl">Sign in</h1>
-                                <p className="text-base font-bold leading-normal text-white-dark">Enter your email and password to login</p>
+                                <p className="text-base font-bold leading-normal text-white-dark">Enter your username and password to login</p>
                             </div>
+                            
+                            {error && (
+                                <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                                    {error}
+                                </div>
+                            )}
+
                             <form className="space-y-5 dark:text-white" onSubmit={submitForm}>
                                 <div>
-                                    <label htmlFor="Email">Email</label>
+                                    <label htmlFor="username">Username / User ID</label>
                                     <div className="relative text-white-dark">
-                                        <input id="Email" type="email" placeholder="Enter Email" className="form-input ps-10 placeholder:text-white-dark" />
+                                        <input 
+                                            id="username" 
+                                            name="username"
+                                            type="text" 
+                                            placeholder="Enter Username or User ID" 
+                                            className="form-input ps-10 placeholder:text-white-dark"
+                                            value={formData.username}
+                                            onChange={handleInputChange}
+                                            required
+                                        />
                                         <span className="absolute start-4 top-1/2 -translate-y-1/2">
                                             <IconMail fill={true} />
                                         </span>
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="Password">Password</label>
+                                    <label htmlFor="password">Password</label>
                                     <div className="relative text-white-dark">
-                                        <input id="Password" type="password" placeholder="Enter Password" className="form-input ps-10 placeholder:text-white-dark" />
+                                        <input 
+                                            id="password" 
+                                            name="password"
+                                            type="password" 
+                                            placeholder="Enter Password" 
+                                            className="form-input ps-10 placeholder:text-white-dark"
+                                            value={formData.password}
+                                            onChange={handleInputChange}
+                                            required
+                                        />
                                         <span className="absolute start-4 top-1/2 -translate-y-1/2">
                                             <IconLockDots fill={true} />
                                         </span>
@@ -146,12 +251,22 @@ const LoginCover = () => {
                                 </div>
                                 <div>
                                     <label className="flex cursor-pointer items-center">
-                                        <input type="checkbox" className="form-checkbox bg-white dark:bg-black" />
-                                        <span className="text-white-dark">Subscribe to weekly newsletter</span>
+                                        <input 
+                                            type="checkbox" 
+                                            name="rememberMe"
+                                            className="form-checkbox bg-white dark:bg-black" 
+                                            checked={formData.rememberMe}
+                                            onChange={handleInputChange}
+                                        />
+                                        <span className="text-white-dark">Remember me</span>
                                     </label>
                                 </div>
-                                <button type="submit" className="btn btn-gradient !mt-6 w-full border-0 uppercase shadow-[0_10px_20px_-10px_rgba(67,97,238,0.44)]">
-                                    Sign in
+                                <button 
+                                    type="submit" 
+                                    disabled={loading}
+                                    className="btn btn-gradient !mt-6 w-full border-0 uppercase shadow-[0_10px_20px_-10px_rgba(67,97,238,0.44)] disabled:opacity-50"
+                                >
+                                    {loading ? 'Signing in...' : 'Sign in'}
                                 </button>
                             </form>
 

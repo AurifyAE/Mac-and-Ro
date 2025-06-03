@@ -33,6 +33,7 @@ export default function Branches() {
     const [showModal, setShowModal] = useState(false);
     const [deleteConfirmModal, setDeleteConfirmModal] = useState(false);
     const [branchToDelete, setBranchToDelete] = useState<BranchData | null>(null);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     const fetchBranches = async () => {
         try {
@@ -52,7 +53,18 @@ export default function Branches() {
         setForm({ ...form, [name]: value });
     };
 
+    const validateForm = () => {
+        const newErrors: { [key: string]: string } = {};
+        if (!form.branchName.trim()) newErrors.branchName = 'Branch Name is required';
+        if (!form.branchEmail.trim()) newErrors.branchEmail = 'Branch Email is required';
+        if (!form.branchPhone.trim()) newErrors.branchPhone = 'Branch Phone is required';
+        if (!form.branchAddress.trim()) newErrors.branchAddress = 'Branch Address is required';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async () => {
+        if (!validateForm()) return;
         try {
             if (editingId) {
                 await updateBranch(editingId, form);
@@ -62,6 +74,7 @@ export default function Branches() {
             setForm({ ...emptyForm });
             setEditingId(null);
             setShowModal(false);
+            setErrors({});
             fetchBranches();
         } catch (err) {
             console.error('Error saving branch:', err);
@@ -194,6 +207,7 @@ export default function Branches() {
                             placeholder="Branch Name" 
                             className="w-full border rounded px-3 py-2" 
                         />
+                        {errors.branchName && <p className="text-red-500 text-xs">{errors.branchName}</p>}
                         <input 
                             type="email" 
                             name="branchEmail" 
@@ -202,6 +216,7 @@ export default function Branches() {
                             placeholder="Branch Email" 
                             className="w-full border rounded px-3 py-2" 
                         />
+                        {errors.branchEmail && <p className="text-red-500 text-xs">{errors.branchEmail}</p>}
                         <input 
                             type="text" 
                             name="branchPhone" 
@@ -210,6 +225,7 @@ export default function Branches() {
                             placeholder="Branch Phone" 
                             className="w-full border rounded px-3 py-2" 
                         />
+                        {errors.branchPhone && <p className="text-red-500 text-xs">{errors.branchPhone}</p>}
                         <input 
                             type="text" 
                             name="branchAddress" 
@@ -218,6 +234,7 @@ export default function Branches() {
                             placeholder="Branch Address" 
                             className="w-full border rounded px-3 py-2" 
                         />
+                        {errors.branchAddress && <p className="text-red-500 text-xs">{errors.branchAddress}</p>}
                         <div className="flex justify-end space-x-3 pt-4 border-t">
                             <button onClick={closeModal} className="px-4 py-2 bg-gray-100 rounded">
                                 Cancel

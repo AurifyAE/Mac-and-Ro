@@ -106,8 +106,10 @@ const QuillEditor = lazy(() => import('../pages/Forms/QuillEditor'));
 const MarkDownEditor = lazy(() => import('../pages/Forms/MarkDownEditor'));
 const DateRangePicker = lazy(() => import('../pages/Forms/DateRangePicker'));
 const Clipboard = lazy(() => import('../pages/Forms/Clipboard'));
+const ReqForm = lazy(() => import('../pages/Admin/ReqForm'));
+const SwappedForms = lazy(() => import('../pages/Admin/SwappedForms'));
 
-const getUserRole = () => localStorage.getItem('role');
+const getUserRole = () => localStorage.getItem('userType');
 
 const getRoleBasedRoutes = () => {
     const role = getUserRole();
@@ -569,6 +571,10 @@ const adminRoutes = [
         path: '/user-management',
         element: <UserManagement />,
     },
+    {
+        path: '/req-form',
+        element: <ReqForm />,
+    },
     // Add more admin routes here if needed
     {
         path: '*',
@@ -587,12 +593,32 @@ const superAdminRoutes = [
         element: <Branches />,
     },
     {
+        path: '/branch-charges',
+        element: <SwappedForms />,
+    },
+    {
         path: '/superadmin/branch-charges',
         element: <BranchCharges />,
     },
     {
         path: '/',
         element: <Index />,
+    },
+     {
+        path: '/kyc',
+        element: <KYCManagement />,
+    },
+    {
+        path: '/reports',
+        element: <Reports />,
+    },
+    {
+        path: '/user-management',
+        element: <UserManagement />,
+    },
+    {
+        path: '/req-form',
+        element: <ReqForm />,
     },
     // Add more superadmin routes here if needed
     {

@@ -231,11 +231,11 @@ export default function BranchCharges() {
                   <div className="font-medium text-gray-900">{branch.branchName}</div>
                   <div className="text-sm text-gray-500">{branch.branchCode}</div>
                   <div className="text-xs text-gray-400 mt-1">{branch.branchAddress}</div>
-                  {branch.chargeTo && branch.chargeTo.length > 0 && (
+                  {/* {branch.chargeTo && branch.chargeTo.length > 0 && (
                     <div className="text-xs text-green-600 mt-2 font-medium">
                       {branch.chargeTo.filter(charge => charge.amount > 0).length} charge(s) configured
                     </div>
-                  )}
+                  )} */}
                 </button>
               ))}
             </div>
@@ -283,7 +283,7 @@ export default function BranchCharges() {
                       To Branch
                     </th>
                     <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Charge Amount (AED)
+                      Charge Amount (USD)
                     </th>
                   </tr>
                 </thead>
@@ -308,7 +308,7 @@ export default function BranchCharges() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           <div className="flex items-center space-x-2">
-                            <span className="text-gray-500">AED</span>
+                            <span className="text-gray-500">USD</span>
                             <input
                               type="number"
                               step="0.01"

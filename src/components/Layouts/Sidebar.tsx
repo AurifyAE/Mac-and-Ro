@@ -12,6 +12,7 @@ import IconMenuDashboard from '../Icon/Menu/IconMenuDashboard';
 import IconMenuInvoice from '../Icon/Menu/IconMenuInvoice';
 import IconMenuCharts from '../Icon/Menu/IconMenuCharts';
 import IconMenuUsers from '../Icon/Menu/IconMenuUsers';
+import IconFolder from '../Icon/IconFolder';
 
 type MenuItem = {
     to?: string;
@@ -53,8 +54,8 @@ const Sidebar = () => {
     }, [location]);
 
     // Hide sidebar if not authenticated
-    const adminType = localStorage.getItem('role');
-    const isAuthenticated = !!localStorage.getItem('role');
+    const adminType = localStorage.getItem('userType') || '';
+    const isAuthenticated = !!localStorage.getItem('userType');
     if (!isAuthenticated) {
         return null;
     }
@@ -64,20 +65,29 @@ const Sidebar = () => {
         { to: '/', label: t('Dashboard'), icon: <IconMenuDashboard /> },
         { to: '/user-management', label: t('User Management'), icon: <IconMenuUsers /> },
         { to: '/kyc', label: t('KYC Management'), icon: <IconMenuUsers /> },
-        { to: '/reports', label: t('Reports'), icon: <IconMenuCharts /> },
+        { to: '/req-form', label: t('Reqests'), icon: <IconFolder /> },
+        // { to: '/reports', label: t('Reports'), icon: <IconMenuCharts /> },
     ];
 
     // Sidebar menu items for super admin
     const superAdminMenu: MenuItem[] = [
-        { to: '/superadmin/branch-admin', label: t('Branch Admin'), icon: <IconMenuUsers /> },
+        // { to: '/superadmin/branch-admin', label: t('Branch Admin'), icon: <IconMenuUsers /> },
+        { to: '/', label: t('Dashboard'), icon: <IconMenuDashboard /> },
         { to: '/superadmin/branches', label: t('Branches'), icon: <IconMenuDashboard /> },
         { to: '/superadmin/branch-charges', label: t('Branch Charges'), icon: <IconMenuInvoice /> },
-        { to: '/', label: t('Dashboard'), icon: <IconMenuDashboard /> },
+          { to: '/user-management', label: t('User Management'), icon: <IconMenuUsers /> },
+        { to: '/kyc', label: t('KYC Management'), icon: <IconMenuUsers /> },
+        { to: '/req-form', label: t('Reqests'), icon: <IconFolder /> },
+        { to: '/branch-charges', label: t('Swapped Forms'), icon: <IconFolder /> },
     ];
     const menuToShow: MenuItem[] = adminType === 'superadmin' ? superAdminMenu : adminType === 'admin' ? adminMenu : [];
 
     const handleLogout = () => {
         localStorage.removeItem('role');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userType');
+        localStorage.removeItem('username');
         window.location.href = '/auth/boxed-signin';
     };
 
@@ -93,8 +103,8 @@ const Sidebar = () => {
                 <div className="bg-white dark:bg-black h-full flex flex-col">
                     <div className="flex justify-between items-center px-4 py-3">
                         <NavLink to="/" className="main-logo flex items-center shrink-0">
-                            <img className="w-8 ml-[5px] flex-none" src="/assets/images/logo.svg" alt="logo" />
-                            <span className="text-2xl ltr:ml-1.5 rtl:mr-1.5 font-semibold align-middle lg:inline dark:text-white-light">{t('VRISTO')}</span>
+                            {/* <img className="w-8 ml-[5px] flex-none" src="/assets/images/logo.svg" alt="logo" />
+                            <span className="text-2xl ltr:ml-1.5 rtl:mr-1.5 font-semibold align-middle lg:inline dark:text-white-light">{t('VRISTO')}</span> */}
                         </NavLink>
                         <button
                             type="button"
