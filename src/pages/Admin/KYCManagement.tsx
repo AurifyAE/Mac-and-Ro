@@ -59,18 +59,15 @@ interface KYCData {
     type: string;
     createdAt?: string;
     updatedAt?: string;
+    remarks?: string; 
 }
 
 interface KYCAcceptData {
     spreadValue: number;
-    branchAdminId: string;
-    approvedBy?: string;
-    comments?: string;
 }
 
 interface KYCRejectData {
     reasons: string[];
-    rejectedBy?: string;
 }
 
 interface Toast {
@@ -104,8 +101,7 @@ export default function KYCManagement() {
 
     const fetchKYCForms = async () => {
         try {
-            const response = (await getAllKYCForms()) as KYCFormsResponse;
-            const mappedData: KYCData[] = response.data.map((form: KYCForm) => ({
+const response = (await getAllKYCForms()) as unknown as KYCFormsResponse;            const mappedData: KYCData[] = response.data.map((form: KYCForm) => ({
                 ...form,
                 branchName: form.branchName || branches.find((b) => b._id === form.branch)?.branchName,
             }));
@@ -177,22 +173,13 @@ export default function KYCManagement() {
         if (!kycToAction?._id || !actionType) return;
 
         try {
-            const adminId = localStorage.getItem('userId'); 
-            const adminName = localStorage.getItem('username');
-            if (!adminId || !adminName) {
-                setToast({ message: 'Admin ID not found. Please log in again.', type: 'error' });
-                return;
-            }
 
             if (actionType === 'approve') {
                 if (!spreadValue || !validateSpreadValue(spreadValue)) {
                     return; 
                 }
-                const acceptData: KYCAcceptData = {
-                    spreadValue: parseFloat(spreadValue),
-                    branchAdminId: adminId,
-                    approvedBy: adminName,
-                    comments: 'Approved after verification',
+                const acceptData: any = {
+                    spreadValue: parseFloat(spreadValue)
                 };
                 await acceptKYC(kycToAction._id, acceptData);
                 setToast({ message: `KYC for ${kycToAction.customerName} approved successfully!`, type: 'success' });
@@ -202,7 +189,6 @@ export default function KYCManagement() {
                 }
                 const rejectData: KYCRejectData = {
                     reasons: [remarks], // Use the provided remarks
-                    rejectedBy: adminId,
                 };
                 await rejectKYC(kycToAction._id, rejectData);
                 setToast({ message: `KYC for ${kycToAction.customerName} rejected successfully!`, type: 'success' });
@@ -327,12 +313,12 @@ export default function KYCManagement() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredKYCForms.map((kyc) => (
+                                    filteredKYCForms.map((kyc:any) => (
                                         <tr key={kyc._id} className="hover:bg-gray-50 transition-colors duration-200">
                                             <td className="px-6 py-4 text-sm font-medium text-gray-900">{kyc.customerName}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{kyc.customerEmail}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{kyc.idNumber}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">{kyc.branchName || 'N/A'}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{kyc?.branch?.branchName || 'N/A'}</td>
                                             <td className="px-6 py-4">
                                                 <span className={getStatusBadge(kyc.kycStatus)}>{kyc.kycStatus.charAt(0).toUpperCase() + kyc.kycStatus.slice(1)}</span>
                                             </td>
@@ -447,23 +433,32 @@ export default function KYCManagement() {
                                 <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{selectedKyc.residence}</p>
                             </div>
 
+                            {
+                                selectedKyc.kycStatus === 'rejected' && (
+                                    <div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-4">Rejection Reason</h3>
+                                        <p className="text-sm text-gray-900">{selectedKyc.remarks || 'No reason provided'}</p>
+                                    </div>
+                                )
+                            }
+
                             {(selectedKyc.document?.url || selectedKyc.image?.url) && (
                                 <div>
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {selectedKyc.document?.url && (
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Document</label>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Front side</label>
                                                 <a href={selectedKyc.document.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm underline">
-                                                    View Document
+                                                    View
                                                 </a>
                                             </div>
                                         )}
                                         {selectedKyc.image?.url && (
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Back side</label>
                                                 <a href={selectedKyc.image.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm underline">
-                                                    View Photo
+                                                    View
                                                 </a>
                                             </div>
                                         )}

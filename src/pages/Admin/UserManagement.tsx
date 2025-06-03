@@ -1,404 +1,535 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Search, Users, Wallet, CheckCircle, Eye } from 'lucide-react';
-import { getAllCustomers, searchCustomers } from '../../api/api';
+import { Search, Filter, Eye, Edit, UserPlus, Phone, Mail, MapPin, Calendar, DollarSign, Building, FileText, ImageIcon, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 
-// Define Customer interface
-interface Customer {
-  _id: string;
-  customerName: string;
-  userName: string;
-  customerEmail: string;
-  customerPhone: string;
-  kycStatus: 'pending' | 'approved' | 'rejected' | 'registered';
-  cash?: number;
-  branch: Array<{
-    branch: string;
-    gold: number;
-  }>;
-  createdAt: string;
-}
+  interface CustomerDetailModalProps {
+    customer: any;
+    onClose: () => void;
+  }
 
-function UserManagement() {
-    const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<'customers' | 'wallets' | 'approvals'>('customers');
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+const CustomerManagement = () => {
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-    // Fetch all customers on component mount
-    useEffect(() => {
-        fetchCustomers();
-    }, []);
+  // Fetch customers from API
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${backendUrl}/customers`)
+      .then(res => res.json())
+      .then(data => {
+        setCustomers(data);
+        setFilteredCustomers(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-    // Filter customers based on search term
-    useEffect(() => {
-        if (!searchTerm.trim()) {
-            setFilteredCustomers(customers);
-        } else {
-            const filtered = customers.filter(customer =>
-                customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.customerPhone.includes(searchTerm)
-            );
-            setFilteredCustomers(filtered);
-        }
-    }, [searchTerm, customers]);
+  // Fetch single customer by ID when modal opens (optional, for fresh data)
+  const handleViewCustomer = (customer: any) => {
+    setLoading(true);
+    fetch(`${backendUrl}/customers/${customer._id}`)
+      .then(res => res.json())
+      .then(data => {
+        setSelectedCustomer(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setSelectedCustomer(customer); // fallback to passed customer
+        setLoading(false);
+      });
+  };
 
-    const fetchCustomers = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await getAllCustomers();
-            setCustomers(response.data);
-        } catch (err) {
-            setError('Failed to fetch customers');
-            console.error('Error fetching customers:', err);
-        } finally {
-            setLoading(false);
-        }
+  // Search and filter logic
+  useEffect(() => {
+    let filtered = customers;
+
+    if (searchTerm) {
+      filtered = filtered.filter(customer =>
+        customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.customerPhone.includes(searchTerm)
+      );
+    }
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(customer => customer.kycStatus === filterStatus);
+    }
+
+    setFilteredCustomers(filtered);
+  }, [searchTerm, filterStatus, customers]);
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      approved: 'bg-green-100 text-green-800',
+      pending: 'bg-yellow-100 text-yellow-800',
+      rejected: 'bg-red-100 text-red-800',
+      registered: 'bg-blue-100 text-blue-800'
     };
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
 
-    const handleSearch = (value: string) => {
-        setSearchTerm(value);
-    };
+  const formatCurrency = (amount: any) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'approved':
-                return 'bg-green-100 text-green-800';
-            case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'rejected':
-                return 'bg-red-100 text-red-800';
-            case 'registered':
-                return 'bg-blue-100 text-blue-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
-        }
-    };
+  const formatDate = (date: any) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
-    const renderTabContent = () => {
-        switch (activeTab) {
-            case 'customers':
-                return (
-                    <div className="p-6">
-                        {/* Search Bar */}
-                        <div className="mb-6">
-                            <div className="relative max-w-md">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                <input
-                                    type="text"
-                                    placeholder="Search customers..."
-                                    value={searchTerm}
-                                    onChange={(e) => handleSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                            </div>
-                        </div>
 
-                        {/* Loading State */}
-                        {loading && (
-                            <div className="text-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                                <p className="mt-2 text-gray-600">Loading customers...</p>
-                            </div>
-                        )}
 
-                        {/* Error State */}
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                                <p className="text-red-700">{error}</p>
-                                <button
-                                    onClick={fetchCustomers}
-                                    className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
-                                >
-                                    Try again
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Customers Table */}
-                        {!loading && !error && (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Customer
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Contact
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Status
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Cash Balance
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {filteredCustomers.map((customer) => (
-                                            <tr key={customer._id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900">
-                                                            {customer.customerName}
-                                                        </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            @{customer.userName}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900">
-                                                        {customer.customerEmail}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        {customer.customerPhone}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(customer.kycStatus)}`}>
-                                                        {customer.kycStatus}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    ${customer.cash?.toFixed(2) || '0.00'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <button className="text-blue-600 hover:text-blue-900 flex items-center">
-                                                        <Eye className="w-4 h-4 mr-1" />
-                                                        View
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-
-                                {/* No Results */}
-                                {filteredCustomers.length === 0 && !loading && (
-                                    <div className="text-center py-8">
-                                        <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-500">
-                                            {searchTerm ? 'No customers found matching your search.' : 'No customers found.'}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Results Count */}
-                                {filteredCustomers.length > 0 && (
-                                    <div className="mt-4 text-sm text-gray-600">
-                                        Showing {filteredCustomers.length} of {customers.length} customers
-                                        {searchTerm && ` for "${searchTerm}"`}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                );
-            case 'wallets':
-                return (
-                    <div className="p-6">
-                        {/* Search Bar for Wallets */}
-                        <div className="mb-6">
-                            <div className="relative max-w-md">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                <input
-                                    type="text"
-                                    placeholder="Search user wallets..."
-                                    value={searchTerm}
-                                    onChange={(e) => handleSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Loading State */}
-                        {loading && (
-                            <div className="text-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                                <p className="mt-2 text-gray-600">Loading user wallets...</p>
-                            </div>
-                        )}
-
-                        {/* Error State */}
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                                <p className="text-red-700">{error}</p>
-                                <button
-                                    onClick={fetchCustomers}
-                                    className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
-                                >
-                                    Try again
-                                </button>
-                            </div>
-                        )}
-
-                        {/* User Wallets Table */}
-                        {!loading && !error && (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                User
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Cash Balance
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Gold Balance
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Total Branches
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {filteredCustomers.map((customer) => {
-                                            const totalGold = customer.branch.reduce((sum, branch) => sum + (branch.gold || 0), 0);
-                                            return (
-                                                <tr key={customer._id} className="hover:bg-gray-50">
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div>
-                                                            <div className="text-sm font-medium text-gray-900">
-                                                                {customer.customerName}
-                                                            </div>
-                                                            <div className="text-sm text-gray-500">
-                                                                @{customer.userName}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                                                            <span className="text-sm font-medium text-gray-900">
-                                                                ${customer.cash?.toFixed(2) || '0.00'}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
-                                                            <span className="text-sm font-medium text-gray-900">
-                                                                {totalGold.toFixed(2)} oz
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                            {customer.branch.length} {customer.branch.length === 1 ? 'branch' : 'branches'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                        <button className="text-blue-600 hover:text-blue-900 flex items-center">
-                                                            <Wallet className="w-4 h-4 mr-1" />
-                                                            Details
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-
-                                {/* No Results */}
-                                {filteredCustomers.length === 0 && !loading && (
-                                    <div className="text-center py-8">
-                                        <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-500">
-                                            {searchTerm ? 'No user wallets found matching your search.' : 'No user wallets found.'}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Results Count */}
-                                {filteredCustomers.length > 0 && (
-                                    <div className="mt-4 text-sm text-gray-600">
-                                        Showing {filteredCustomers.length} of {customers.length} user wallets
-                                        {searchTerm && ` for "${searchTerm}"`}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                );
-            case 'approvals':
-                return (
-                    <div className="p-8 text-center">
-                        <CheckCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('Approvals')}</h3>
-                        <p className="text-gray-600">Handle user approval requests and permissions</p>
-                    </div>
-                );
-            default:
-                return null;
-        }
-    };
+  const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, onClose }) => {
+    if (!customer) return null;
 
     return (
-        <main className="min-h-screen bg-gray-50 py-8">
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-                <header className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 mb-8">
-                    <h1 className="text-3xl font-bold text-white text-center">{t('User Management')}</h1>
-                    <p className="text-blue-100 text-center mt-2">Manage customers, wallets, and approvals efficiently</p>
-                </header>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-900">{customer.customerName}</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
 
-                <section className="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <div className="border-b border-gray-200">
-                        <nav className="flex space-x-8 px-6" aria-label="Tabs">
-                            <button
-                                onClick={() => setActiveTab('customers')}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                                    activeTab === 'customers'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                {t('Customers')}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('wallets')}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                                    activeTab === 'wallets'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                {t('User Wallets')}
-                            </button>
-                            {/* <button
-                                onClick={() => setActiveTab('approvals')}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                                    activeTab === 'approvals'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                {t('Approvals')}
-                            </button> */}
-                        </nav>
-                    </div>
+          <div className="p-6 space-y-6">
+            {/* Basic Information */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold">
+                      {customer.customerName.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium">{customer.customerName}</p>
+                    <p className="text-sm text-gray-500">@{customer.userName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(customer.kycStatus)}`}>
+                    {customer.kycStatus.charAt(0).toUpperCase() + customer.kycStatus.slice(1)}
+                  </span>
+                  {customer.type && (
+                    <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                      {customer.type}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </section>
 
-                    <div className="min-h-96">
-                        {renderTabContent()}
+            {/* Contact Information */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-3">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{customer.customerEmail}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Phone className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="font-medium">{customer.customerPhone}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <MapPin className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Residence</p>
+                    <p className="font-medium">{customer.residence}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Calendar className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Date of Birth</p>
+                    <p className="font-medium">{formatDate(customer.dateOfBirth)}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Financial Information */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <DollarSign className="h-6 w-6 text-green-600" />
+                    <div>
+                      <p className="text-sm text-gray-500">Cash Balance</p>
+                      <p className="text-lg font-semibold text-green-600">{formatCurrency(customer.cash)}</p>
                     </div>
-                </section>
-            </div>
-        </main>
+                  </div>
+                </div>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <span className="h-6 w-6 bg-yellow-400 rounded text-white text-xs flex items-center justify-center font-bold">Au</span>
+                    <div>
+                      <p className="text-sm text-gray-500">Gold Holdings</p>
+                      <p className="text-lg font-semibold text-yellow-600">
+                        {customer.branch.reduce((total: number, b: any) => total + b.gold, 0).toFixed(2)} g
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <span className="h-6 w-6 bg-blue-400 rounded text-white text-xs flex items-center justify-center">%</span>
+                    <div>
+                      <p className="text-sm text-gray-500">Spread Value</p>
+                      <p className="text-lg font-semibold text-blue-600">{customer.spreadValue}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Additional Details */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Nationality</p>
+                  <p className="font-medium">{customer.nationality}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Source of Income</p>
+                  <p className="font-medium">{customer.sourceOfIncome}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">ID Number</p>
+                  <p className="font-medium">{customer.idNumber}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Bank Account</p>
+                  <p className="font-medium">{customer.bankAccountNumber}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Documents */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Documents</h3>
+              <div className="flex space-x-4">
+                {customer.document?.url && (
+                  <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-lg">
+                    <FileText className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm">Document</span>
+                  </div>
+                )}
+                {customer.image?.url && (
+                  <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-lg">
+                    <ImageIcon className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm">Profile Image</span>
+                  </div>
+                )}
+                {customer.documentFront?.url && (
+                  <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-lg">
+                    <Shield className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm">ID Front</span>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Branch Information */}
+            {customer.branch.length > 0 && (
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Branch Holdings</h3>
+                <div className="space-y-2">
+                  {customer.branch.map((branchInfo: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Building className="h-5 w-5 text-gray-600" />
+                        <span className="font-medium">
+                          {(branchInfo.branch && branchInfo.branch.name) ? branchInfo.branch.name : 'Branch'}
+                        </span>
+                      </div>
+                      <span className="text-yellow-600 font-semibold">{branchInfo.gold.toFixed(2)} g</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Timestamps */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Account History</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Created</p>
+                  <p className="font-medium">{formatDate(customer.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Last Updated</p>
+                  <p className="font-medium">{formatDate(customer.updatedAt)}</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
     );
-}
+  };
 
-export default UserManagement;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading customers...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
+              <p className="mt-2 text-gray-600">Manage and view customer information</p>
+            </div>
+            <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+              <UserPlus className="h-5 w-5" />
+              <span>Add Customer</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search customers by name, email, phone..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <Filter className="h-5 w-5" />
+              <span>Filters</span>
+              {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex flex-wrap gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">KYC Status</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="registered">Registered</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Customer Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Customers</p>
+                <p className="text-2xl font-bold text-gray-900">{customers.length}</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 font-bold">{customers.length}</span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Approved</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {customers.filter(c => c.kycStatus === 'approved').length}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Shield className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {customers.filter(c => c.kycStatus === 'pending').length}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Cash</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(customers.reduce((sum, c) => sum + c.cash, 0))}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer Table */}
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cash Balance
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Gold Holdings
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredCustomers.map((customer) => (
+                  <tr key={customer._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <span className="text-sm font-medium text-blue-600">
+                              {customer.customerName.charAt(0)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{customer.customerName}</div>
+                          <div className="text-sm text-gray-500">@{customer.userName}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{customer.customerEmail}</div>
+                      <div className="text-sm text-gray-500">{customer.customerPhone}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(customer.kycStatus)}`}>
+                        {customer.kycStatus.charAt(0).toUpperCase() + customer.kycStatus.slice(1)}
+                      </span>
+                      {customer.type && (
+                        <div className="mt-1">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                            {customer.type}
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(customer.cash)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {customer.branch.reduce((total: number, b: any) => total + b.gold, 0).toFixed(2)} g
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleViewCustomer(customer)}
+                          className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span>View</span>
+                        </button>
+                        {/* <button className="text-gray-600 hover:text-gray-900 flex items-center space-x-1">
+                          <Edit className="h-4 w-4" />
+                          <span>Edit</span>
+                        </button> */}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredCustomers.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-500">
+                <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">No customers found</p>
+                <p className="text-sm">Try adjusting your search or filter criteria</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Customer Detail Modal */}
+      {selectedCustomer && (
+        <CustomerDetailModal
+          customer={selectedCustomer}
+          onClose={() => setSelectedCustomer(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default CustomerManagement;
