@@ -41,7 +41,7 @@ const Reports = () => {
     setError(null);
     try {
       const response = await getAllLogs();
-      setLogs(response.data);
+      setLogs(response.data as Log[]);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch logs');
     } finally {
