@@ -371,7 +371,7 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                             <div className="flex items-center space-x-4">
-                                <div>
+                                {/* <div>
                                     <label htmlFor="customer-filter" className="text-sm font-medium text-gray-700">
                                         Search by Customer ID:
                                     </label>
@@ -391,7 +391,7 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
                                             Search
                                         </button>
                                     </div>
-                                </div>
+                                </div> */}
                                 <div>
                                     <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
                                         Filter by Status:

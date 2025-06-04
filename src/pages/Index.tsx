@@ -23,7 +23,7 @@ const Index = () => {
         pending: 0,
         approved: 0,
         rejected: 0,
-        registered: 0
+        registered: 0,
     });
     const backendUrl = import.meta.env.VITE_API_URL || '/api';
 
@@ -40,10 +40,10 @@ const Index = () => {
             pending: 0,
             approved: 0,
             rejected: 0,
-            registered: 0
+            registered: 0,
         };
 
-        customersData.forEach(customer => {
+        customersData.forEach((customer) => {
             const status = customer.kycStatus || 'pending'; // Default to pending if not set
             switch (status) {
                 case 'pending':
@@ -102,11 +102,11 @@ const Index = () => {
             console.error('Error fetching customers:', error);
             setError('Failed to fetch customers');
         }
-    }
+    };
 
     useEffect(() => {
         fetchCustomers();
-    }, [])
+    }, []);
 
     useEffect(() => {
         fetchLogs();
@@ -160,7 +160,7 @@ const Index = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <h5 className="font-semibold text-lg dark:text-white-light mb-2">System Logs & Customer Overview</h5>
-                            <p className="text-white-dark">Real-time system logs • Auto-refreshes every 30 seconds • Logs expire after 10 days</p>
+                            <p className="text-white-dark">Real-time system logs • Auto-refreshes every 30 seconds</p>
                         </div>
                         <button type="button" onClick={fetchLogs} disabled={loading} className="btn btn-primary flex items-center gap-2">
                             <IconRefresh className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -245,7 +245,7 @@ const Index = () => {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="panel">
                         <div className="flex items-center">
                             <div className="w-12 h-12 bg-info-light dark:bg-info text-info dark:text-info-light rounded-lg flex items-center justify-center ltr:mr-3 rtl:ml-3">
@@ -299,7 +299,7 @@ const Index = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {logs.map((log: any, index: number) => {
+                                    {logs.slice(0, 15).map((log: any, index: number) => {
                                         return (
                                             <div
                                                 key={log._id || index}
