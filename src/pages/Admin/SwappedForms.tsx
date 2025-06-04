@@ -309,8 +309,8 @@ const fetchSwappedProducts = async () => {
                 )}
 
                 <header className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-8 mb-8">
-                    <h1 className="text-3xl font-bold text-white text-center">Swapped Products Management</h1>
-                    <p className="text-purple-100 text-center mt-2">Monitor and manage all swapped transactions</p>
+                    <h1 className="text-3xl font-bold text-white text-center">Branch to Branch</h1>
+                    <p className="text-purple-100 text-center mt-2">Monitor and manage all branch to branch transactions</p>
                 </header>
 
                 <section className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -383,7 +383,7 @@ const fetchSwappedProducts = async () => {
                         <div className="flex flex-wrap gap-6 text-sm">
                             <div className="flex items-center">
                                 <div className="w-4 h-4 bg-gray-600 rounded-full mr-2"></div>
-                                <span>Total Swapped: {swappedProducts.length}</span>
+                                <span>Total : {swappedProducts.length}</span>
                             </div>
                             <div className="flex items-center">
                                 <div className="w-4 h-4 bg-yellow-400 rounded-full mr-2"></div>
@@ -397,10 +397,10 @@ const fetchSwappedProducts = async () => {
                                 <div className="w-4 h-4 bg-red-400 rounded-full mr-2"></div>
                                 <span>Rejected: {swappedProducts.filter((p) => p.status === 'rejected').length}</span>
                             </div>
-                            <div className="flex items-center">
+                            {/* <div className="flex items-center">
                                 <div className="w-4 h-4 bg-blue-400 rounded-full mr-2"></div>
                                 <span>Closed: {swappedProducts.filter((p) => p.status === 'closed').length}</span>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
 

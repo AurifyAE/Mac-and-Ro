@@ -1,121 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Edit, UserPlus, Phone, Mail, MapPin, Calendar, DollarSign, Building, FileText, ImageIcon, Shield, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
-import Swal from 'sweetalert2';
+import { Search, Filter, Eye, Edit, UserPlus, Phone, Mail, MapPin, Calendar, DollarSign, Building, FileText, ImageIcon, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface CustomerDetailModalProps {
     customer: any;
     onClose: () => void;
 }
-
-const GoldDepositModal = ({
-    isOpen,
-    onClose,
-    branchInfo,
-    customerId,
-    onDeposit,
-}: {
-    isOpen: boolean;
-    onClose: () => void;
-    branchInfo: any;
-    customerId: string;
-    onDeposit: (branchId: string, amount: number) => void;
-}) => {
-    const [amount, setAmount] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-     const backendUrl = import.meta.env.VITE_API_URL;
-
-    const handleSubmit = async () => {
-        if (!amount || parseFloat(amount) <= 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Invalid Amount',
-                text: 'Please enter a valid amount',
-            });
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const response = await fetch(`${backendUrl}/deposit-gold-to/${customerId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    branchId: branchInfo.branch._id,
-                    amount: parseFloat(amount),
-                }),
-            });
-            if (response.ok) {
-                onDeposit(branchInfo.branch._id, parseFloat(amount));
-                setAmount('');
-                onClose();
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Success',
-                    text: 'Gold deposited successfully!',
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Deposit Failed',
-                    text: 'Failed to deposit gold. Please try again.',
-                });
-            }
-        } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred. Please try again.',
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (!isOpen || !branchInfo) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Deposit Gold</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
-                <div className="mb-4">
-                    <p className="text-sm text-gray-600 mb-2">Branch:</p>
-                    <p className="font-medium text-gray-900">{branchInfo.branch?.branchName || 'Branch'}</p>
-                </div>
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount (grams)</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter amount in grams"
-                    />
-                </div>
-                <div className="flex space-x-3">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isLoading}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {isLoading ? 'Depositing...' : 'OK'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const CustomerManagement = () => {
     const [customers, setCustomers] = useState<any[]>([]);
@@ -125,11 +14,6 @@ const CustomerManagement = () => {
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [loading, setLoading] = useState<boolean>(true);
     const [showFilters, setShowFilters] = useState<boolean>(false);
-    const [depositModal, setDepositModal] = useState<{ isOpen: boolean; branchInfo: any; customerId: string | null }>({
-        isOpen: false,
-        branchInfo: null,
-        customerId: null,
-    });
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     // Fetch customers from API
@@ -206,56 +90,6 @@ const CustomerManagement = () => {
         });
     };
 
-    // Add this function to handle deposit success
-    const handleDepositSuccess = (branchId: string, amount: number) => {
-        // Update the selectedCustomer (for modal display)
-        setSelectedCustomer((prev: any) => {
-            if (!prev) return prev;
-            return {
-                ...prev,
-                branch: prev.branch.map((b: any) =>
-                    (b.branchId === branchId || b.branch?._id === branchId)
-                        ? { ...b, gold: b.gold + amount }
-                        : b
-                ),
-            };
-        });
-
-        // Update the main customers list (for table display)
-        setCustomers((prev) => {
-            const updatedCustomers = prev.map((cust) =>
-                cust._id === depositModal.customerId
-                    ? {
-                          ...cust,
-                          branch: cust.branch.map((b: any) =>
-                              (b.branchId === branchId || b.branch?._id === branchId)
-                                  ? { ...b, gold: b.gold + amount }
-                                  : b
-                          ),
-                      }
-                    : cust
-            );
-
-            // Also update filteredCustomers to reflect changes immediately in the table
-            setFilteredCustomers((prevFiltered) =>
-                prevFiltered.map((cust) =>
-                    cust._id === depositModal.customerId
-                        ? {
-                              ...cust,
-                              branch: cust.branch.map((b: any) =>
-                                  (b.branchId === branchId || b.branch?._id === branchId)
-                                      ? { ...b, gold: b.gold + amount }
-                                      : b
-                              ),
-                          }
-                        : cust
-                )
-            );
-
-            return updatedCustomers;
-        });
-    };
-
     const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, onClose }) => {
         if (!customer) return null;
         console.log(customer, 'this is customer');
@@ -279,7 +113,7 @@ const CustomerManagement = () => {
                                         {customer.image?.url ? (
                                             <img src={customer.image.url} alt={customer.customerName} className="h-10 w-10 rounded-full object-cover" />
                                         ) : (
-                                            <span className="text-blue-600 font-semibold">{customer.userName.charAt(0)}</span>
+                                            <span className="text-blue-600 font-semibold">{customer.customerName.charAt(0)}</span>
                                         )}
                                     </div>
                                     <div>
@@ -355,7 +189,7 @@ const CustomerManagement = () => {
                                 </div>
                                 <div className="bg-blue-50 p-4 rounded-lg">
                                     <div className="flex items-center space-x-3">
-                                        <span className="h-6 w-6 bg-blue-400 rounded text-white text-xs flex items-center justify-center">$</span>
+                                        <span className="h-6 w-6 bg-blue-400 rounded text-white text-xs flex items-center justify-center">%</span>
                                         <div>
                                             <p className="text-sm text-gray-500">Spread Value</p>
                                             <p className="text-lg font-semibold text-blue-600">{customer.spreadValue}</p>
@@ -418,105 +252,20 @@ const CustomerManagement = () => {
 
                         {/* Branch Information */}
                         {customer.branch.length > 0 && (
-                            <section className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 mb-4 rounded-t-2xl">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                    <div className="bg-white/20 p-2 rounded-lg">
-                        <Building className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-bold text-white">Branch Holdings</h3>
-                        <p className="text-blue-100 text-sm">Gold deposits across locations</p>
-                    </div>
-                </div>
-                <div className="text-right">
-                    <div className="flex items-center space-x-2 text-white">
-                        <span className="text-2xl font-bold">
-                            {customer.branch.reduce((sum: number, b: any) => sum + b.gold, 0).toFixed()}g
-                        </span>
-                    </div>
-                    <p className="text-blue-100 text-sm">Total Holdings</p>
-                </div>
-            </div>
-        </div>
-        <div className="p-6">
-            <div className="grid gap-4">
-                {customer.branch.map((branchInfo: any, index: number) => {
-                    const totalGold = customer.branch.reduce((sum: number, b: any) => sum + b.gold, 0);
-                    const percent = totalGold > 0 ? (branchInfo.gold / totalGold) * 100 : 0;
-                    return (
-                        <div key={index} className="group relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            <div className="relative bg-gradient-to-r from-gray-50 to-gray-100/50 hover:from-yellow-50 hover:to-orange-50 border border-gray-200 hover:border-yellow-300 p-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-4">
-                                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-md">
-                                            <Building className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-gray-900 text-lg">
-                                                {branchInfo.branch && branchInfo.branch.branchName ? branchInfo.branch.branchName : 'Branch'}
-                                            </h4>
-                                            <p className="text-gray-500 text-sm flex items-center space-x-1">
-                                                <svg className="h-3 w-3 text-yellow-500 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" /></svg>
-                                                <span>Active holdings</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-4">
-                                        <div className="text-right">
-                                            <div className="flex items-center space-x-2">
-                                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                                                <span className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                                                    {branchInfo.gold.toFixed()}g
-                                                </span>
+                            <section>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Branch Holdings</h3>
+                                <div className="space-y-2">
+                                    {customer.branch.map((branchInfo: any, index: number) => (
+                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                            <div className="flex items-center space-x-3">
+                                                <Building className="h-5 w-5 text-gray-600" />
+                                                <span className="font-medium">{branchInfo.branch && branchInfo.branch.branchName ? branchInfo.branch.branchName : 'Branch'}</span>
                                             </div>
-                                            <p className="text-gray-500 text-sm">Gold Holdings</p>
+                                            <span className="text-yellow-600 font-semibold">{branchInfo.gold.toFixed(2)} g</span>
                                         </div>
-                                        <button
-                                            onClick={() =>
-                                                setDepositModal({
-                                                    isOpen: true,
-                                                    branchInfo,
-                                                    customerId: customer._id,
-                                                })
-                                            }
-                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center space-x-2 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
-                                            title="Deposit Gold"
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            <span>Deposit</span>
-                                        </button>
-                                    </div>
+                                    ))}
                                 </div>
-                                <div className="mt-4">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-500"
-                                            style={{ width: `${percent}%` }}
-                                        ></div>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {percent.toFixed(1)}% of total holdings
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            {customer.branch.length === 0 && (
-                <div className="text-center py-12">
-                    <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                        <Building className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h4 className="text-gray-600 font-medium mb-2">No Branch Holdings</h4>
-                    <p className="text-gray-500 text-sm">Start by making your first deposit</p>
-                </div>
-            )}
-        </div>
-    </section>
+                            </section>
                         )}
 
                         {/* Timestamps */}
@@ -740,18 +489,7 @@ const CustomerManagement = () => {
             </div>
 
             {/* Customer Detail Modal */}
-            {selectedCustomer && (
-                <>
-                    <CustomerDetailModal customer={selectedCustomer} onClose={() => setSelectedCustomer(null)} />
-                    <GoldDepositModal
-                        isOpen={depositModal.isOpen}
-                        onClose={() => setDepositModal({ isOpen: false, branchInfo: null, customerId: null })}
-                        branchInfo={depositModal.branchInfo}
-                        customerId={depositModal.customerId || ''}
-                        onDeposit={handleDepositSuccess}
-                    />
-                </>
-            )}
+            {selectedCustomer && <CustomerDetailModal customer={selectedCustomer} onClose={() => setSelectedCustomer(null)} />}
         </div>
     );
 };

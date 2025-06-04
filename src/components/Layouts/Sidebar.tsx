@@ -6,13 +6,7 @@ import { toggleSidebar } from '../../store/themeConfigSlice';
 import AnimateHeight from 'react-animate-height';
 import { IRootState } from '../../store';
 import { useState, useEffect } from 'react';
-import IconCaretsDown from '../Icon/IconCaretsDown';
-import IconCaretDown from '../Icon/IconCaretDown';
-import IconMenuDashboard from '../Icon/Menu/IconMenuDashboard';
-import IconMenuInvoice from '../Icon/Menu/IconMenuInvoice';
-import IconMenuCharts from '../Icon/Menu/IconMenuCharts';
-import IconMenuUsers from '../Icon/Menu/IconMenuUsers';
-import IconFolder from '../Icon/IconFolder';
+import { LayoutDashboard, Users, FileText, Folder, ChevronDown, LogOut, FileCheck2, GitBranch, SquareStack, LucideArrowRightLeft } from 'lucide-react';
 
 type MenuItem = {
     to?: string;
@@ -62,23 +56,21 @@ const Sidebar = () => {
 
     // Sidebar menu items for admin
     const adminMenu: MenuItem[] = [
-        { to: '/', label: t('Dashboard'), icon: <IconMenuDashboard /> },
-        { to: '/user-management', label: t('User Management'), icon: <IconMenuUsers /> },
-        { to: '/kyc', label: t('KYC Management'), icon: <IconMenuUsers /> },
-        { to: '/req-form', label: t('Reqests'), icon: <IconFolder /> },
-        // { to: '/reports', label: t('Reports'), icon: <IconMenuCharts /> },
+        { to: '/', label: t('Dashboard'), icon: <LayoutDashboard size={20} /> },
+        { to: '/user-management', label: t('User Management'), icon: <Users size={20} /> },
+        { to: '/kyc', label: t('KYC Management'), icon: <FileCheck2 size={20} /> },
+        { to: '/req-form', label: t('Reqests'), icon: <Folder size={20} /> },
     ];
 
     // Sidebar menu items for super admin
     const superAdminMenu: MenuItem[] = [
-        // { to: '/superadmin/branch-admin', label: t('Branch Admin'), icon: <IconMenuUsers /> },
-        { to: '/', label: t('Dashboard'), icon: <IconMenuDashboard /> },
-        { to: '/superadmin/branches', label: t('Branches'), icon: <IconMenuDashboard /> },
-        { to: '/superadmin/branch-charges', label: t('Branch Charges'), icon: <IconMenuInvoice /> },
-          { to: '/user-management', label: t('User Management'), icon: <IconMenuUsers /> },
-        { to: '/kyc', label: t('KYC Management'), icon: <IconMenuUsers /> },
-        { to: '/req-form', label: t('Reqests'), icon: <IconFolder /> },
-        { to: '/branch-charges', label: t('Swapped Forms'), icon: <IconFolder /> },
+        { to: '/', label: t('Dashboard'), icon: <LayoutDashboard size={20} /> },
+        { to: '/superadmin/branches', label: t('Branches'), icon: <SquareStack size={20} /> },
+        { to: '/superadmin/branch-charges', label: t('Branch Charges'), icon: <FileText size={20} /> },
+        { to: '/user-management', label: t('User Management'), icon: <Users size={20} /> },
+        { to: '/kyc', label: t('KYC Management'), icon: <FileCheck2 size={20} /> },
+        { to: '/req-form', label: t('Reqests'), icon: <Folder size={20} /> },
+        { to: '/branch-charges', label: t('Branch to Branch'), icon: <LucideArrowRightLeft size={20} /> },
     ];
     const menuToShow: MenuItem[] = adminType === 'superadmin' ? superAdminMenu : adminType === 'admin' ? adminMenu : [];
 
@@ -103,6 +95,7 @@ const Sidebar = () => {
                 <div className="bg-white dark:bg-black h-full flex flex-col">
                     <div className="flex justify-between items-center px-4 py-3">
                         <NavLink to="/" className="main-logo flex items-center shrink-0">
+                        <h2 style={{fontSize:'x-large'}}>Mac & Ro</h2>
                             {/* <img className="w-8 ml-[5px] flex-none" src="/assets/images/logo.svg" alt="logo" />
                             <span className="text-2xl ltr:ml-1.5 rtl:mr-1.5 font-semibold align-middle lg:inline dark:text-white-light">{t('VRISTO')}</span> */}
                         </NavLink>
@@ -111,7 +104,7 @@ const Sidebar = () => {
                             className="collapse-icon w-8 h-8 rounded-full flex items-center hover:bg-gray-500/10 dark:hover:bg-dark-light/10 dark:text-white-light transition duration-300 rtl:rotate-180"
                             onClick={() => dispatch(toggleSidebar())}
                         >
-                            <IconCaretsDown className="m-auto rotate-90" />
+                            <ChevronDown className="m-auto rotate-90" />
                         </button>
                     </div>
                     <PerfectScrollbar className="h-[calc(100vh-80px)] relative flex-1 mt-4">
@@ -122,7 +115,7 @@ const Sidebar = () => {
                                         <button type="button" className="group w-full flex items-center" onClick={() => toggleMenu(item.label)}>
                                             {item.icon}
                                             <span className="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">{item.label}</span>
-                                            <IconCaretDown className={`ml-auto transition-transform ${currentMenu === item.label ? 'rotate-180' : ''}`} />
+                                            <ChevronDown className={`ml-auto transition-transform ${currentMenu === item.label ? 'rotate-180' : ''}`} />
                                         </button>
                                         <AnimateHeight duration={300} height={currentMenu === item.label ? 'auto' : 0}>
                                             <ul className="sub-menu pl-0">
@@ -156,7 +149,7 @@ const Sidebar = () => {
                     </PerfectScrollbar>
                     <div className="p-4 mt-auto">
                         <button onClick={handleLogout} className="w-full flex items-center px-4 py-2 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900 transition">
-                            <span className="mr-2">⎋</span>
+                            <LogOut className="mr-2" size={18} />
                             <span>{t('Logout')}</span>
                         </button>
                     </div>
