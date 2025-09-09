@@ -1,5 +1,7 @@
 import React, { useEffect, useState, ChangeEvent } from 'react';
 import { createBranchAdmin, getAllBranchAdmins, updateBranchAdmin, deleteBranchAdmin, getAllBranches } from '../../api/api';
+import { toast } from 'react-toastify';
+
 
 interface Branch {
     _id?: string;
@@ -37,14 +39,22 @@ const emptyForm: BranchAdminData = {
     image: null,
 };
 
+interface Toast {
+    message: string;
+    type: 'success' | 'error';
+}
+
 export default function BranchAdmin() {
     const [admins, setAdmins] = useState<BranchAdminData[]>([]);
+   
+
     const [branches, setBranches] = useState<Branch[]>([]);
     const [form, setForm] = useState<BranchAdminData>({ ...emptyForm });
     const [editingId, setEditingId] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [deleteConfirmModal, setDeleteConfirmModal] = useState(false);
     const [branchAdminToDelete, setBranchAdminToDelete] = useState<BranchAdminData | null>(null);
+
 
     const fetchBranches = async () => {
         try {
@@ -107,7 +117,6 @@ export default function BranchAdmin() {
             const formData = new FormData();
             Object.entries(form).forEach(([key, value]) => {
                 if (value && key !== 'branchName') {
-                    // Don't send branchName to API
                     formData.append(key, value);
                 }
             });
@@ -120,10 +129,13 @@ export default function BranchAdmin() {
 
             await fetchAdmins();
             setForm({ ...emptyForm });
+            // show toast while editingId still indicates update vs create
+            toast.success(editingId ? 'Branch admin updated successfully!' : 'Branch admin created successfully!');
             setEditingId(null);
             setShowModal(false);
         } catch (err) {
             console.error('Error saving admin:', err);
+            toast.error('Failed to save admin. Please try again.');
         }
     };
 
@@ -216,9 +228,7 @@ export default function BranchAdmin() {
                                             <td className="px-6 py-4 text-sm font-medium text-gray-900">{admin.name}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{admin.email}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{admin.phone}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
-                                                {admin.branchName || admin.branch || 'N/A'}
-                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{admin.branchName || admin.branch || 'N/A'}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{admin.userId}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title={admin.address}>
                                                 {admin.address}
@@ -426,39 +436,42 @@ export default function BranchAdmin() {
                         <header className="p-6 border-b border-gray-200">
                             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                                 <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                                    ></path>
                                 </svg>
                                 Confirm Deletion
                             </h3>
                         </header>
-                        
+
                         <div className="p-6">
-                            <p className="text-gray-600 mb-2">
-                                Are you sure you want to delete the branch admin:
-                            </p>
+                            <p className="text-gray-600 mb-2">Are you sure you want to delete the branch admin:</p>
                             <div className="bg-gray-50 p-3 rounded-md mb-4">
                                 <p className="font-semibold text-gray-900">{branchAdminToDelete.name}</p>
                                 <p className="text-sm text-gray-600">{branchAdminToDelete.email}</p>
                                 <p className="text-sm text-gray-600">{branchAdminToDelete.branchName || 'Unknown Branch'}</p>
                             </div>
-                            <p className="text-sm text-red-600">
-                                This action cannot be undone.
-                            </p>
+                            <p className="text-sm text-red-600">This action cannot be undone.</p>
                         </div>
 
                         <footer className="flex justify-end space-x-3 p-6 border-t border-gray-200">
-                            <button 
-                                onClick={closeDeleteModal} 
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
-                            >
+                            <button onClick={closeDeleteModal} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200">
                                 Cancel
                             </button>
-                            <button 
-                                onClick={confirmDelete} 
+                            <button
+                                onClick={confirmDelete}
                                 className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 flex items-center"
                             >
                                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    ></path>
                                 </svg>
                                 Delete Admin
                             </button>

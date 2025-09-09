@@ -282,7 +282,7 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
             if (actionType === 'approve') {
                 await approveReqForm(reqFormToAction._id);
                 setToast({ 
-                    message: `Request for ${reqFormToAction.customer?.name || 'N/A'} approved successfully!`, 
+                    message: `Request for ${reqFormToAction.customer?.customerName || 'N/A'} approved successfully!`, 
                     type: 'success' 
                 });
             } else {
@@ -291,7 +291,7 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
                 }
                 await rejectReqForm(reqFormToAction._id, remarks);
                 setToast({ 
-                    message: `Request for ${reqFormToAction.customer?.name || 'N/A'} rejected successfully!`, 
+                    message: `Request for ${reqFormToAction.customer?.customerName || 'N/A'} rejected successfully!`, 
                     type: 'success' 
                 });
             }
@@ -306,7 +306,7 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
         } catch (error) {
             console.error('Error performing action:', error);
             setToast({ 
-                message: `Failed to ${actionType} request for ${reqFormToAction.customer?.name || 'N/A'}.`, 
+                message: `Failed to ${actionType} request for ${reqFormToAction.customer?.customerName || 'N/A'}.`, 
                 type: 'error' 
             });
         }

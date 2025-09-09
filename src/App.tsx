@@ -5,6 +5,8 @@ import { toggleRTL, toggleTheme, toggleLocale, toggleMenu, toggleLayout, toggleA
 import store from './store';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 
 function App({ children }: PropsWithChildren) {
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
@@ -44,6 +46,7 @@ function App({ children }: PropsWithChildren) {
                 themeConfig.rtlClass
             } main-section antialiased relative font-nunito text-sm font-normal`}
         >
+            <ToastContainer position='top-right'/>
             {children}
             <Toaster position="top-right" />
         </div>
