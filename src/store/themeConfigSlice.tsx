@@ -130,6 +130,7 @@ const themeConfigSlice = createSlice({
             state.locale = payload;
         },
         toggleSidebar(state) {
+            console.log('Toggling sidebar state:', state.sidebar);
             state.sidebar = !state.sidebar;
         },
 

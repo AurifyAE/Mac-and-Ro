@@ -2,9 +2,14 @@ import React, { useState, useEffect, ChangeEvent } from 'react';
 import { getAllBranches, updateBranchCharge } from '../../api/api';
 import toast from 'react-hot-toast';
 
+interface UpToItem {
+    kg: number;
+    percentage: number;
+}
+
 interface ChargeToBranch {
     branch: string;
-    amount: number;
+    upTo: UpToItem[];
 }
 
 interface Branch {
@@ -22,7 +27,7 @@ interface Branch {
 interface ChargeData {
   branch: string;
   branchName?: string;
-  amount: number;
+  upTo: UpToItem[];
 }
 
 export default function BranchCharges() {
@@ -37,7 +42,7 @@ export default function BranchCharges() {
           try {
               setLoading(true);
               const response = await getAllBranches();
-              setBranches(response.data);
+              setBranches(response.data as Branch[]);
           } catch (error) {
               console.error('Error fetching branches:', error);
               setError('Failed to load branches. Please try again.');
@@ -65,18 +70,46 @@ export default function BranchCharges() {
         return {
           branch: otherBranch._id!, // Use non-null assertion since we filtered above
           branchName: otherBranch.branchName,
-          amount: existingCharge ? existingCharge.amount : 0
+          upTo: existingCharge ? existingCharge.upTo : [{ kg: 0, percentage: 0 }]
         };
       });
     
     setCharges(initialCharges);
   };
 
-  const handleChargeChange = (e: ChangeEvent<HTMLInputElement>, branchId: string) => {
-    const { value } = e.target;
+  const handleUpToChange = (branchId: string, upToIndex: number, field: 'kg' | 'percentage', value: string) => {
     setCharges(prev => prev.map(charge => 
       charge.branch === branchId 
-        ? { ...charge, amount: parseFloat(value) || 0 }
+        ? { 
+            ...charge, 
+            upTo: charge.upTo.map((item, index) => 
+              index === upToIndex 
+                ? { ...item, [field]: parseFloat(value) || 0 }
+                : item
+            )
+          }
+        : charge
+    ));
+  };
+
+  const addUpToItem = (branchId: string) => {
+    setCharges(prev => prev.map(charge => 
+      charge.branch === branchId 
+        ? { 
+            ...charge, 
+            upTo: [...charge.upTo, { kg: 0, percentage: 0 }]
+          }
+        : charge
+    ));
+  };
+
+  const removeUpToItem = (branchId: string, upToIndex: number) => {
+    setCharges(prev => prev.map(charge => 
+      charge.branch === branchId 
+        ? { 
+            ...charge, 
+            upTo: charge.upTo.filter((_, index) => index !== upToIndex)
+          }
         : charge
     ));
   };
@@ -91,8 +124,8 @@ export default function BranchCharges() {
       // Format charges for API (remove branchName as it's not needed for backend)
       const chargesToSave = charges.map(charge => ({
         branch: charge.branch,
-        amount: charge.amount
-      }));
+        upTo: charge.upTo.filter(item => item.kg > 0 || item.percentage > 0) // Filter out empty entries
+      })).filter(charge => charge.upTo.length > 0); // Only include branches with valid upTo entries
 
       // Send as an object with chargeTo array property
       const payload = { chargeTo: chargesToSave };
@@ -171,7 +204,7 @@ export default function BranchCharges() {
       <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
         <header className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 mb-8">
           <h1 className="text-3xl font-bold text-white text-center">Branch Charges Management</h1>
-          <p className="text-blue-100 text-center mt-2">Manage inter-branch charges efficiently</p>
+          <p className="text-blue-100 text-center mt-2">Manage inter-branch charge rates by weight tiers</p>
         </header>
 
         {error && (
@@ -231,11 +264,11 @@ export default function BranchCharges() {
                   <div className="font-medium text-gray-900">{branch.branchName}</div>
                   <div className="text-sm text-gray-500">{branch.branchCode}</div>
                   <div className="text-xs text-gray-400 mt-1">{branch.branchAddress}</div>
-                  {/* {branch.chargeTo && branch.chargeTo.length > 0 && (
+                  {branch.chargeTo && branch.chargeTo.length > 0 && (
                     <div className="text-xs text-green-600 mt-2 font-medium">
-                      {branch.chargeTo.filter(charge => charge.amount > 0).length} charge(s) configured
+                      {branch.chargeTo.filter(charge => charge.upTo.some(item => item.kg > 0 || item.percentage > 0)).length} charge(s) configured
                     </div>
-                  )} */}
+                  )}
                 </button>
               ))}
             </div>
@@ -252,7 +285,7 @@ export default function BranchCharges() {
                     Charges from {selectedBranch.branchName}
                   </h2>
                   <p className="text-gray-500 mt-1">
-                    Set charges to other branches from {selectedBranch.branchName}
+                    Set weight-based charge rates to other branches from {selectedBranch.branchName}
                   </p>
                 </div>
                 <button
@@ -272,59 +305,88 @@ export default function BranchCharges() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      From Branch
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      To Branch
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Charge Amount (USD)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {charges.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
-                        <div className="flex flex-col items-center">
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Other Branches Available</h3>
-                          <p className="text-gray-500">All branches are already configured.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    charges.map((charge) => (
-                      <tr key={charge.branch} className="hover:bg-gray-50 transition-colors duration-200">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {selectedBranch.branchName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {charge.branchName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-gray-500">USD</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={charge.amount || ''}
-                              onChange={(e) => handleChargeChange(e, charge.branch)}
-                              className="w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right"
-                              placeholder="0.00"
-                            />
+            <div className="p-6">
+              {charges.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">
+                  <div className="flex flex-col items-center">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Other Branches Available</h3>
+                    <p className="text-gray-500">All branches are already configured.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {charges.map((charge) => (
+                    <div key={charge.branch} className="border border-gray-200 rounded-lg p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {selectedBranch.branchName} → {charge.branchName}
+                        </h3>
+                        <button
+                          onClick={() => addUpToItem(charge.branch)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200"
+                        >
+                          Add Tier
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {charge.upTo.map((item, index) => (
+                          <div key={index} className="flex items-center space-x-4 bg-gray-50 p-4 rounded-lg">
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Weight (kg)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={item.kg || ''}
+                                onChange={(e) => handleUpToChange(charge.branch, index, 'kg', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.0"
+                              />
+                            </div>
+                            
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Percentage (%)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={item.percentage || ''}
+                                onChange={(e) => handleUpToChange(charge.branch, index, 'percentage', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            
+                            {charge.upTo.length > 1 && (
+                              <button
+                                onClick={() => removeUpToItem(charge.branch, index)}
+                                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md transition-colors duration-200"
+                                title="Remove tier"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                        ))}
+                      </div>
+                      
+                      {charge.upTo.length === 0 && (
+                        <div className="text-center text-gray-500 py-8">
+                          <p>No charge tiers configured. Click "Add Tier" to add pricing tiers.</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         ) : (
@@ -337,7 +399,7 @@ export default function BranchCharges() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Branch Selected</h3>
-                <p className="text-gray-500">Please select a branch above to configure inter-branch charges</p>
+                <p className="text-gray-500">Please select a branch above to configure inter-branch charge rates</p>
               </div>
             </div>
           </section>
