@@ -169,6 +169,16 @@ export const rejectKYC = async (id: string, data: KYCRejectData): Promise<KYCRes
   }
 };
 
+export const reverseKYC = async (id: string): Promise<KYCResponse> => {
+  try {
+    const response = await axiosInstance.post(`/kyc/reverse/${id}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error reversing KYC:', error);
+    throw new Error(error.response?.data?.message || 'Failed to reverse KYC');
+  }
+};
+
 // Customer API Functions
 export const getAllCustomers = async (): Promise<AxiosResponse<Customer[]>> => {
   return axiosInstance.get('/customers');

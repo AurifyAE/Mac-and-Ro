@@ -7,6 +7,7 @@ import AnimateHeight from 'react-animate-height';
 import { IRootState } from '../../store';
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, FileText, Folder, ChevronDown, LogOut, FileCheck2, GitBranch, SquareStack, LucideArrowRightLeft } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 type MenuItem = {
     to?: string;
@@ -74,23 +75,56 @@ const Sidebar = () => {
     ];
     const menuToShow: MenuItem[] = adminType === 'superadmin' ? superAdminMenu : adminType === 'admin' ? adminMenu : [];
 
-    const handleLogout = () => {
-        localStorage.removeItem('role');
-        localStorage.removeItem('token');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userType');
-        localStorage.removeItem('username');
-        window.location.href = '/auth/boxed-signin';
+    const handleLogout = async () => {
+        const result = await Swal.fire({
+            title: 'Confirm Logout',
+            text: 'Are you sure you want to logout?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, logout',
+            cancelButtonText: 'Cancel'
+        });
+
+        if (result.isConfirmed) {
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('username');
+            
+            // Show success toast
+            Swal.fire({
+                title: 'Logged Out',
+                text: 'You have been successfully logged out.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+            
+            setTimeout(() => {
+                window.location.href = '/auth/boxed-signin';
+            }, 1000);
+        }
     };
 
     const toggleMenu = (value: string) => {
         setCurrentMenu((oldValue) => (oldValue === value ? '' : value));
     };
 
+    // Debug: Log the current sidebar state
+    console.log('Sidebar component render - themeConfig.sidebar:', themeConfig.sidebar);
+
     return (
         <div className={semidark ? 'dark' : ''}>
             <nav
                 className={`sidebar fixed min-h-screen h-full top-0 bottom-0 w-[260px] shadow-[5px_0_25px_0_rgba(94,92,154,0.1)] z-50 transition-all duration-300 ${semidark ? 'text-white-dark' : ''}`}
+                style={{
+                    left: themeConfig.sidebar ? '0px' : '-260px'
+                }}
             >
                 <div className="bg-white dark:bg-black h-full flex flex-col">
                     <div className="flex justify-between items-center px-4 py-3">
@@ -104,7 +138,9 @@ const Sidebar = () => {
                             className="collapse-icon w-8 h-8 rounded-full flex items-center hover:bg-gray-500/10 dark:hover:bg-dark-light/10 dark:text-white-light transition duration-300 rtl:rotate-180"
                             onClick={() => {
                                 console.log('Sidebar toggle button clicked');
+                                console.log('Current sidebar state:', themeConfig.sidebar);
                                 dispatch(toggleSidebar());
+                                console.log('After dispatch, sidebar state:', themeConfig.sidebar);
                             }}
                         >
                             <ChevronDown className="m-auto rotate-90" />

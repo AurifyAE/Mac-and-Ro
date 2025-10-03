@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { getAllKYCForms, acceptKYC, rejectKYC, getAllBranches } from '../../api/api';
+import React, { useEffect, useState, useRef } from 'react';
+import { getAllKYCForms, acceptKYC, rejectKYC, reverseKYC, getAllBranches } from '../../api/api';
 import { Branch } from '../../api/types';
 
 // Define KYCForm based on Mongoose schema
@@ -60,6 +60,7 @@ interface KYCData {
     createdAt?: string;
     updatedAt?: string;
     remarks?: string; 
+    actionTimestamp?: string;
 }
 
 interface KYCAcceptData {
@@ -89,6 +90,21 @@ export default function KYCManagement() {
     const [remarks, setRemarks] = useState<string>(''); // New state for rejection remarks
     const [remarksError, setRemarksError] = useState<string>(''); // Error state for remarks validation
     const [toast, setToast] = useState<Toast | null>(null); // State for toast notification
+    
+    // SSE connection reference
+    const eventSourceRef = useRef<EventSource | null>(null);
+
+    // Helper function to check if reverse action is available (within 5 minutes)
+    const canReverse = (kyc: KYCData): boolean => {
+        if (kyc.kycStatus === 'pending' || !kyc.createdAt) return false;
+    
+        const createdTime = new Date(kyc.createdAt).getTime();
+        const currentTime = Date.now();
+        const fiveMinutesInMs = 5 * 60 * 1000;
+    
+        return (currentTime - createdTime) <= fiveMinutesInMs;
+    };
+    
 
     const fetchBranches = async () => {
         try {
@@ -111,12 +127,132 @@ const response = (await getAllKYCForms()) as unknown as KYCFormsResponse;       
         }
     };
 
+    // Set up SSE connection for real-time updates
+    const setupSSE = () => {
+        // Debug: Log the VITE_API_URL value
+        console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+        
+        // Build SSE URL correctly
+        let sseUrl;
+        if (import.meta.env.VITE_API_URL) {
+            // If VITE_API_URL exists, check if it already ends with /api/admin
+            const apiUrl = import.meta.env.VITE_API_URL;
+            if (apiUrl.endsWith('/api/admin')) {
+                sseUrl = `${apiUrl}/events`;
+            } else if (apiUrl.endsWith('/api')) {
+                sseUrl = `${apiUrl}/admin/events`;
+            } else {
+                sseUrl = `${apiUrl}/api/admin/events`;
+            }
+        } else {
+            // Default fallback
+            sseUrl = 'http://localhost:5000/api/admin/events';
+        }
+        
+        console.log('Setting up SSE connection to:', sseUrl);
+        
+        // Close existing connection if any
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+        
+        // Create new EventSource connection
+        const eventSource = new EventSource(sseUrl);
+        eventSourceRef.current = eventSource;
+        
+        // Connection opened
+        eventSource.onopen = () => {
+            console.log('SSE connection established for KYC Management');
+        };
+        
+        // Listen for messages
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('SSE message received:', data);
+                
+                // Handle different event types
+                switch (data.type) {
+                    case 'CONNECTION_ESTABLISHED':
+                        console.log('SSE connection confirmed:', data.clientId);
+                        break;
+                        
+                    case 'NEW_KYC_FORM':
+                        console.log('New KYC form submitted:', data.message);
+                        // Refresh KYC forms to include the new form
+                        fetchKYCForms();
+                        
+                        // Show toast notification
+                        setToast({
+                            message: data.message || 'New KYC form submitted',
+                            type: 'success'
+                        });
+                        break;
+                        
+                    case 'KYC_STATUS_UPDATE':
+                        console.log('KYC status updated:', data.message);
+                        // Refresh KYC forms to show updated status
+                        fetchKYCForms();
+                        
+                        // Show toast notification
+                        setToast({
+                            message: data.message || 'KYC status updated',
+                            type: 'success'
+                        });
+                        break;
+                        
+                    case 'NEW_REQFORM':
+                        console.log('New request form created:', data.message);
+                        // Note: This is for request forms, not KYC forms
+                        // You might want to handle this differently or ignore it
+                        break;
+                        
+                    case 'REQFORM_STATUS_UPDATE':
+                        console.log('Request form status updated:', data.message);
+                        // Note: This is for request forms, not KYC forms
+                        break;
+                        
+                    default:
+                        console.log('Unknown SSE event type:', data.type);
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error);
+            }
+        };
+        
+        // Handle errors
+        eventSource.onerror = (error) => {
+            console.error('SSE connection error:', error);
+            
+            // If connection is closed, attempt to reconnect after 5 seconds
+            if (eventSource.readyState === EventSource.CLOSED) {
+                console.log('SSE connection closed, attempting to reconnect in 5 seconds...');
+                setTimeout(() => {
+                    setupSSE();
+                }, 5000);
+            }
+        };
+        
+        return eventSource;
+    };
+    
     useEffect(() => {
         fetchBranches();
     }, []);
 
     useEffect(() => {
         fetchKYCForms();
+        
+        // Set up SSE connection
+        const eventSource = setupSSE();
+        
+        // Cleanup on unmount
+        return () => {
+            if (eventSource) {
+                console.log('Cleaning up SSE connection');
+                eventSource.close();
+            }
+        };
     }, [branches]);
 
     const filteredKYCForms = kycForms.filter((kyc) => selectedStatus === 'all' || kyc.kycStatus === selectedStatus);
@@ -173,7 +309,6 @@ const response = (await getAllKYCForms()) as unknown as KYCFormsResponse;       
         if (!kycToAction?._id || !actionType) return;
 
         try {
-
             if (actionType === 'approve') {
                 if (!spreadValue || !validateSpreadValue(spreadValue)) {
                     return; 
@@ -198,6 +333,19 @@ const response = (await getAllKYCForms()) as unknown as KYCFormsResponse;       
         } catch (error) {
             console.error('Error performing action:', error);
             setToast({ message: `Failed to ${actionType} KYC for ${kycToAction.customerName}.`, type: 'error' });
+        }
+    };
+
+    const handleReverseAction = async (kyc: KYCData) => {
+        if (!kyc._id) return;
+
+        try {
+            await reverseKYC(kyc._id);
+            setToast({ message: `KYC status for ${kyc.customerName} reversed to pending successfully!`, type: 'success' });
+            await fetchKYCForms();
+        } catch (error) {
+            console.error('Error reversing KYC:', error);
+            setToast({ message: `Failed to reverse KYC for ${kyc.customerName}.`, type: 'error' });
         }
     };
 
@@ -348,6 +496,15 @@ const response = (await getAllKYCForms()) as unknown as KYCFormsResponse;       
                                                             </button>
                                                         </>
                                                     )}
+                                                    {(kyc.kycStatus === 'approved' || kyc.kycStatus === 'rejected') && canReverse(kyc) && (
+    <button
+        onClick={() => handleReverseAction(kyc)}
+        className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200"
+        title="Reverse action (available for 5 minutes)"
+    >
+        Reverse
+    </button>
+)}
                                                 </div>
                                             </td>
                                         </tr>

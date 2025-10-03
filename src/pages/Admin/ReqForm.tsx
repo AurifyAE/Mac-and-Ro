@@ -34,6 +34,7 @@ interface ReqForm {
     Remarks?: string;
     createdAt?: string;
     updatedAt?: string;
+    actionTimestamp?: string;
 }
 
 interface Toast {
@@ -141,6 +142,24 @@ const rejectReqForm = async (reqFormId: string, remarks: string): Promise<any> =
     return await response.json();
 };
 
+// Add reverse request form function
+const reverseReqForm = async (reqFormId: string): Promise<any> => {
+    const response = await fetch(`${backendUrl}/reqform/reverse/${reqFormId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            // Add authorization header if needed
+            // 'Authorization': `Bearer ${token}`
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to reverse request form');
+    }
+    
+    return await response.json();
+};
+
 export default function ReqFormManagement() {
     const [reqForms, setReqForms] = useState<ReqForm[]>([]);
     const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -159,6 +178,101 @@ export default function ReqFormManagement() {
     console.log('reqForms:', reqForms);
     console.log('selectedStatus:', selectedReqForm);
 
+    // Set up SSE connection for real-time updates
+    const setupSSE = () => {
+        console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+        let sseUrl;
+        if (import.meta.env.VITE_API_URL) {
+            const apiUrl = import.meta.env.VITE_API_URL;
+            if (apiUrl.endsWith('/api/admin')) {
+                sseUrl = `${apiUrl}/events`;
+            } else if (apiUrl.endsWith('/api')) {
+                sseUrl = `${apiUrl}/admin/events`;
+            } else {
+                sseUrl = `${apiUrl}/api/admin/events`;
+            }
+        } else {
+            sseUrl = 'http://localhost:5000/api/admin/events';
+        }
+        
+        console.log('Connecting to SSE at:', sseUrl);
+        const eventSource = new EventSource(sseUrl);
+        
+        // Connection opened
+        eventSource.onopen = () => {
+            console.log('SSE connection established for ReqForm Management');
+        };
+        
+        // Listen for messages
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('SSE message received:', data);
+                
+                // Handle different event types
+                switch (data.type) {
+                    case 'CONNECTION_ESTABLISHED':
+                        console.log('SSE connection confirmed:', data.clientId);
+                        break;
+                        
+                    case 'NEW_REQFORM':
+                        console.log('New request form submitted:', data.message);
+                        // Refresh request forms to include the new form
+                        if (customerIdFilter.trim()) {
+                            fetchCustomerReqForms(customerIdFilter.trim());
+                        } else {
+                            fetchReqFormsByStatus(selectedStatus);
+                        }
+                        
+                        // Show success toast
+                        setToast({
+                            message: data.message || 'New request form submitted',
+                            type: 'success'
+                        });
+                        break;
+                        
+                    case 'REQFORM_STATUS_UPDATE':
+                        console.log('Request form status updated:', data.message);
+                        // Refresh request forms to show updated status
+                        if (customerIdFilter.trim()) {
+                            fetchCustomerReqForms(customerIdFilter.trim());
+                        } else {
+                            fetchReqFormsByStatus(selectedStatus);
+                        }
+                        break;
+                        
+                    default:
+                        console.log('Unknown SSE event type:', data.type);
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error);
+            }
+        };
+        
+        // Handle errors
+        eventSource.onerror = (error) => {
+            console.error('SSE connection error:', error);
+            
+            // If connection is closed, attempt to reconnect after 5 seconds
+            if (eventSource.readyState === EventSource.CLOSED) {
+                console.log('SSE connection closed, attempting to reconnect in 5 seconds...');
+                setTimeout(() => {
+                    setupSSE();
+                }, 5000);
+            }
+        };
+        
+        return eventSource;
+    };
+
+    // Helper function to check if reverse action is available (within 5 minutes)
+    const canReverse = (reqForm: ReqForm): boolean => {
+        if (reqForm.status === 'pending' || !reqForm.actionTimestamp) return false;
+        const actionTime = new Date(reqForm.actionTimestamp).getTime();
+        const currentTime = new Date().getTime();
+        const fiveMinutesInMs = 5 * 60 * 1000;
+        return (currentTime - actionTime) <= fiveMinutesInMs;
+    };
 const fetchReqFormsByStatus = async (status: string = 'all') => {
     try {
         setIsLoading(true);
@@ -203,7 +317,26 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
 
  useEffect(() => {
     fetchReqFormsByStatus('all'); // or fetchReqFormsByStatus(selectedStatus)
+    
+    // Set up SSE connection
+    const eventSource = setupSSE();
+    
+    // Cleanup function to close SSE connection
+    return () => {
+        if (eventSource) {
+            eventSource.close();
+            console.log('SSE connection closed');
+        }
+    };
 }, []);
+
+    // Close toast after 3 seconds
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
 
     const filteredReqForms = reqForms.filter((reqForm) => {
         const statusMatch = selectedStatus === 'all' || reqForm.status === selectedStatus;
@@ -307,6 +440,30 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
             console.error('Error performing action:', error);
             setToast({ 
                 message: `Failed to ${actionType} request for ${reqFormToAction.customer?.customerName || 'N/A'}.`, 
+                type: 'error' 
+            });
+        }
+    };
+
+    const handleReverseAction = async (reqForm: ReqForm) => {
+        if (!reqForm._id) return;
+
+        try {
+            await reverseReqForm(reqForm._id);
+            setToast({ 
+                message: `Request for ${reqForm.customer?.name || 'N/A'} reversed to pending successfully!`, 
+                type: 'success' 
+            });
+            
+            if (customerIdFilter.trim()) {
+                fetchCustomerReqForms(customerIdFilter.trim());
+            } else {
+                fetchReqFormsByStatus(selectedStatus);
+            }
+        } catch (error) {
+            console.error('Error reversing request form:', error);
+            setToast({ 
+                message: `Failed to reverse request for ${reqForm.customer?.name || 'N/A'}.`, 
                 type: 'error' 
             });
         }
@@ -543,6 +700,15 @@ const fetchReqFormsByStatus = async (status: string = 'all') => {
                                                                 </button>
                                                             </>
                                                         )}
+                                                        {(reqForm.status === 'approved' || reqForm.status === 'rejected') && canReverse(reqForm) && (
+    <button
+        onClick={() => handleReverseAction(reqForm)}
+        className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200"
+        title="Reverse action (available for 5 minutes)"
+    >
+        Reverse
+    </button>
+)}
                                                     </div>
                                                 </td>
                                             </tr>

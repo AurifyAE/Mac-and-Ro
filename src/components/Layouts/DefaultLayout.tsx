@@ -83,7 +83,12 @@ const DefaultLayout = ({ children }: PropsWithChildren) => {
                     <Sidebar />
                     {/* END SIDEBAR */}
 
-                    <div className="main-content flex flex-col min-h-screen">
+                    <div 
+                        className="main-content flex flex-col min-h-screen transition-all duration-300"
+                        style={{
+                            marginLeft: themeConfig.sidebar ? '260px' : '0px'
+                        }}
+                    >
                         {/* BEGIN TOP NAVBAR */}
                         <Header />
                         {/* END TOP NAVBAR */}

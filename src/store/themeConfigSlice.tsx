@@ -43,7 +43,7 @@ const initialState = {
     navbar: localStorage.getItem('navbar') || themeConfig.navbar,
     locale: localStorage.getItem('i18nextLng') || themeConfig.locale,
     isDarkMode: false,
-    sidebar: localStorage.getItem('sidebar') || defaultState.sidebar,
+    sidebar: localStorage.getItem('sidebar') ? localStorage.getItem('sidebar') === 'true' : true,
     semidark: localStorage.getItem('semidark') || themeConfig.semidark,
     languageList: [
         { code: 'zh', name: 'Chinese' },
@@ -132,6 +132,7 @@ const themeConfigSlice = createSlice({
         toggleSidebar(state) {
             console.log('Toggling sidebar state:', state.sidebar);
             state.sidebar = !state.sidebar;
+            localStorage.setItem('sidebar', state.sidebar.toString());
         },
 
         setPageTitle(state, { payload }) {
